@@ -1,4 +1,4 @@
-package dev.tim9h.rcp.rest;
+package dev.tim9h.rcp.webapi;
 
 import java.util.Map;
 
@@ -7,20 +7,20 @@ import com.google.inject.Inject;
 import dev.tim9h.rcp.spi.CCard;
 import dev.tim9h.rcp.spi.CCardFactory;
 
-public class RestViewFactory implements CCardFactory {
+public class WebApiViewFactory implements CCardFactory {
 
-	public static final String SETTING_PORT = "rest.port";
+	public static final String SETTING_PORT = "api.port";
 
-	public static final String SETTING_APIKEY = "rest.apikeyhash";
+	public static final String SETTING_APIKEY = "api.apikeyhash";
 	
-	public static final String SETTING_ALLOWEDIPS = "rest.allowedips";
+	public static final String SETTING_ALLOWEDIPS = "api.allowedips";
 	
 	@Inject
-	private RestView view;
+	private WebApiView view;
 
 	@Override
 	public String getId() {
-		return "rest";
+		return "webapi";
 	}
 
 	@Override

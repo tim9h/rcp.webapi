@@ -1,6 +1,6 @@
-package dev.tim9h.rcp.rest.controller;
+package dev.tim9h.rcp.webapi.controller;
 
-import static dev.tim9h.rcp.rest.controller.AuthManager.Role.OPERATOR;
+import static dev.tim9h.rcp.webapi.controller.AuthManager.Role.OPERATOR;
 
 import java.util.function.Consumer;
 
@@ -12,15 +12,15 @@ import com.google.inject.Singleton;
 
 import dev.tim9h.rcp.event.EventManager;
 import dev.tim9h.rcp.logging.InjectLogger;
-import dev.tim9h.rcp.rest.RestViewFactory;
 import dev.tim9h.rcp.settings.Settings;
+import dev.tim9h.rcp.webapi.WebApiViewFactory;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import javafx.application.Platform;
 
 @Singleton
-public class RestController {
+public class WebApiController {
 
 	private static final String LOGILED = "logiled";
 
@@ -55,18 +55,18 @@ public class RestController {
 	private AuthManager authManager;
 
 	@Inject
-	public RestController(Injector injector) {
+	public WebApiController(Injector injector) {
 		injector.injectMembers(this);
 		subscribeToNp();
 	}
 
 	public void start() {
-		logger.info(() -> "Starting Rest controller");
+		logger.info(() -> "Starting Api Controller");
 
-		var port = settings.getInt(RestViewFactory.SETTING_PORT);
+		var port = settings.getInt(WebApiViewFactory.SETTING_PORT);
 		if (port == null) {
-			logger.error("Rest controller settings are not properly configured");
-			em.echo("Rest controller settings are not properly configured");
+			logger.error("Api controller settings are not properly configured");
+			em.echo("Api controller settings are not properly configured");
 			return;
 		}
 
@@ -75,8 +75,8 @@ public class RestController {
 					.create(config -> config.router.mount(router -> router.beforeMatched(authManager::handleAccess)))
 					.start(port);
 
-			logger.info(() -> "Rest controller started on port " + port);
-			em.echo("Rest controller started");
+			logger.info(() -> "Api controller started on port " + port);
+			em.echo("Api controller started");
 
 			createPostMapping(LOGILED, "color", this::setLogiledColor);
 			createGetMapping(LOGILED, this::returnLogiledStatus);
@@ -95,7 +95,7 @@ public class RestController {
 
 			createGetMapping("np", this::returnCurrentTrack);
 
-		}, "RestController");
+		}, "WebApiController");
 		thread.setDaemon(true);
 		thread.start();
 	}
@@ -176,13 +176,13 @@ public class RestController {
 		if (thread != null && server != null) {
 			server.stop();
 			server = null;
-			logger.info(() -> "Stopping Rest Controller");
-			em.echo("Rest controller stopped");
+			logger.info(() -> "Stopping api controller");
+			em.echo("Api controller stopped");
 			thread.interrupt();
 			thread = null;
-			logger.debug(() -> "Rest thread stopped");
+			logger.debug(() -> "Api thread stopped");
 		} else {
-			em.echo("Rest controller not running");
+			em.echo("Api controller not running");
 		}
 	}
 

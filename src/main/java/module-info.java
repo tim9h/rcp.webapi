@@ -1,5 +1,5 @@
-module rcp.rest {
-	exports dev.tim9h.rcp.rest;
+module rcp.webapi {
+	exports dev.tim9h.rcp.webapi;
 
 	requires transitive rcp.api;
 	requires com.google.guice;

@@ -1,4 +1,4 @@
-package dev.tim9h.rcp.rest;
+package dev.tim9h.rcp.webapi;
 
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
@@ -13,15 +13,15 @@ import com.google.inject.Inject;
 
 import dev.tim9h.rcp.event.EventManager;
 import dev.tim9h.rcp.logging.InjectLogger;
-import dev.tim9h.rcp.rest.controller.RestController;
 import dev.tim9h.rcp.service.CryptoService;
 import dev.tim9h.rcp.settings.Settings;
 import dev.tim9h.rcp.spi.CCard;
 import dev.tim9h.rcp.spi.Mode;
 import dev.tim9h.rcp.spi.StringNode;
 import dev.tim9h.rcp.spi.TreeNode;
+import dev.tim9h.rcp.webapi.controller.WebApiController;
 
-public class RestView implements CCard {
+public class WebApiView implements CCard {
 	
 	@InjectLogger
 	private Logger logger;
@@ -37,11 +37,11 @@ public class RestView implements CCard {
 
 	@Override
 	public String getName() {
-		return "rest";
+		return "webapi";
 	}
 	
 	@Inject
-	private RestController controller;
+	private WebApiController controller;
 	
 	@Override
 	public Optional<List<Mode>> getModes() {
@@ -61,7 +61,7 @@ public class RestView implements CCard {
 			
 			@Override
 			public String getName() {
-				return "rest";
+				return "api";
 			}
 		}));
 	}
@@ -69,14 +69,14 @@ public class RestView implements CCard {
 	@Override
 	public Optional<TreeNode<String>> getModelessCommands() {
 		var password = new StringNode();
-		password.add("rest").add("genapikey");
+		password.add("api").add("genapikey");
 		return Optional.of(password);
 	}
 	
 	@Override
 	public void initBus(EventManager eventManager) {
 		CCard.super.initBus(eventManager);
-		eventManager.listen("rest", data -> {
+		eventManager.listen("api", data -> {
 			if (data == null) {
 				return;
 			}
@@ -89,7 +89,7 @@ public class RestView implements CCard {
 	private void generateApiKey() {
 		var apiKey = cryptoService.gernateApiKey();
 		var hash = cryptoService.hashSha256(apiKey);
-		settings.persist(RestViewFactory.SETTING_APIKEY, hash);
+		settings.persist(WebApiViewFactory.SETTING_APIKEY, hash);
 		logger.info(() -> "New API key generated");
 		copyToClipboard(apiKey);
 		eventManager.echo(apiKey, "New API key generated and copied to clipboard");
