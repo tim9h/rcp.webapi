@@ -15,13 +15,13 @@ import dev.tim9h.rcp.event.EventManager;
 import dev.tim9h.rcp.logging.InjectLogger;
 import dev.tim9h.rcp.service.CryptoService;
 import dev.tim9h.rcp.settings.Settings;
-import dev.tim9h.rcp.spi.CCard;
 import dev.tim9h.rcp.spi.Mode;
+import dev.tim9h.rcp.spi.Plugin;
 import dev.tim9h.rcp.spi.StringNode;
 import dev.tim9h.rcp.spi.TreeNode;
 import dev.tim9h.rcp.webapi.controller.WebApiController;
 
-public class WebApiView implements CCard {
+public class WebApiView implements Plugin {
 	
 	@InjectLogger
 	private Logger logger;
@@ -75,7 +75,7 @@ public class WebApiView implements CCard {
 	
 	@Override
 	public void initBus(EventManager eventManager) {
-		CCard.super.initBus(eventManager);
+		Plugin.super.initBus(eventManager);
 		eventManager.listen("api", data -> {
 			if (data == null) {
 				return;

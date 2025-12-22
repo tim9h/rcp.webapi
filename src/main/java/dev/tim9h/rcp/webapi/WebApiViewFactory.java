@@ -4,10 +4,10 @@ import java.util.Map;
 
 import com.google.inject.Inject;
 
-import dev.tim9h.rcp.spi.CCard;
-import dev.tim9h.rcp.spi.CCardFactory;
+import dev.tim9h.rcp.spi.Plugin;
+import dev.tim9h.rcp.spi.PluginFactory;
 
-public class WebApiViewFactory implements CCardFactory {
+public class WebApiViewFactory implements PluginFactory {
 
 	public static final String SETTING_PORT = "api.port";
 
@@ -24,7 +24,7 @@ public class WebApiViewFactory implements CCardFactory {
 	}
 
 	@Override
-	public CCard createCCard() {
+	public Plugin create() {
 		return view;
 	}
 
