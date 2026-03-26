@@ -15,6 +15,7 @@ import dev.tim9h.rcp.logging.InjectLogger;
 import dev.tim9h.rcp.settings.Settings;
 import dev.tim9h.rcp.webapi.WebApiViewFactory;
 import io.javalin.Javalin;
+import io.javalin.config.RoutesConfig;
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import javafx.application.Platform;
@@ -47,7 +48,7 @@ public class WebApiController {
 
 	public record Track(String title, String artist, String album, boolean isPlaying) {
 	}
-	
+
 	public record LogiledStatus(boolean enabled, String color) {
 	}
 
@@ -71,45 +72,41 @@ public class WebApiController {
 		}
 
 		thread = new Thread(() -> {
-			server = Javalin
-					.create(config -> config.router.mount(router -> router.beforeMatched(authManager::handleAccess)))
-					.start(port);
+			server = Javalin.create(config -> {
+				createGetMapping(config.routes, LOGILED, this::returnLogiledStatus);
+				createPostMapping(config.routes, LOGILED, "color", this::setLogiledColor);
+				createPostMapping(config.routes, "next", "", _ -> em.post("next"));
+				createPostMapping(config.routes, "previous", "", _ -> em.post("previous"));
+				createPostMapping(config.routes, "play", "", _ -> em.post("play"));
+				createPostMapping(config.routes, "pause", "", _ -> em.post("pause"));
+				createPostMapping(config.routes, "stop", "", _ -> em.post("stop"));
+				createPostMapping(config.routes, "volumeup", "", _ -> em.post("volumeup"));
+				createPostMapping(config.routes, "volumedown", "", _ -> em.post("volumedown"));
+				createPostMapping(config.routes, "mute", "", _ -> em.post("mute"));
+				createPostMapping(config.routes, "lock", "", _ -> em.post("lock"));
+				createPostMapping(config.routes, "shutdown", "time", time -> em.post("shutdown", time));
+				createGetMapping(config.routes, "np", this::returnCurrentTrack);
 
+				config.routes.beforeMatched(authManager::handleAccess);
+			}).start(port);
 			logger.info(() -> "Api controller started on port " + port);
 			em.echo("Api controller started");
-
-			createPostMapping(LOGILED, "color", this::setLogiledColor);
-			createGetMapping(LOGILED, this::returnLogiledStatus);
-
-			createPostMapping("next", () -> em.post("next"));
-			createPostMapping("previous", () -> em.post("previous"));
-			createPostMapping("play", () -> em.post("play"));
-			createPostMapping("pause", () -> em.post("pause"));
-			createPostMapping("stop", () -> em.post("stop"));
-			createPostMapping("volumeup", () -> em.post("volumeup"));
-			createPostMapping("volumedown", () -> em.post("volumedown"));
-			createPostMapping("mute", () -> em.post("mute"));
-
-			createPostMapping("lock", () -> em.post("lock"));
-			createPostMapping("shutdown", "time", time -> em.post("shutdown", time));
-
-			createGetMapping("np", this::returnCurrentTrack);
-
 		}, "WebApiController");
 		thread.setDaemon(true);
 		thread.start();
 	}
 
-	private void createPostMapping(String path, Runnable runnable) {
-		createPostMapping(path, "", _ -> runnable.run(), null);
+	private void createGetMapping(RoutesConfig routes, String path, Consumer<Context> response) {
+		routes.get(path, response::accept, OPERATOR);
 	}
 
-	private void createPostMapping(String path, String param, Consumer<String> consumer) {
-		createPostMapping(path, param, consumer, null);
+	private void createPostMapping(RoutesConfig routes, String path, String param, Consumer<String> consumer) {
+		createPostMapping(routes, path, param, consumer, null);
 	}
 
-	private void createPostMapping(String path, String param, Consumer<String> consumer, Consumer<Context> response) {
-		server.post(path, ctx -> {
+	private void createPostMapping(RoutesConfig routes, String path, String param, Consumer<String> consumer,
+			Consumer<Context> response) {
+		routes.post(path, ctx -> {
 			try {
 				var value = ctx.queryParam(param);
 				logger.debug(() -> String.format("Handling post request for %s%s", path,
@@ -122,12 +119,6 @@ public class WebApiController {
 				logger.warn(() -> String.format("Path parameter %s for post mapping %s not found", param, path));
 			}
 		}, OPERATOR);
-		logger.info(() -> "Post mapping created: " + path);
-	}
-
-	private void createGetMapping(String path, Consumer<Context> response) {
-		server.get(path, response::accept, OPERATOR);
-		logger.info(() -> "Get mapping created: " + path);
 	}
 
 	private void setLogiledColor(String color) {

@@ -31,48 +31,6 @@
 			<version>7.1.0</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.eclipse.jetty.toolchain</groupId>
-			<artifactId>jetty-jakarta-servlet-api</artifactId>
-			<version>5.0.2</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-http</artifactId>
-			<version>11.0.23</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-util</artifactId>
-			<version>11.0.23</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-server</artifactId>
-			<version>11.0.23</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-servlet</artifactId>
-			<version>11.0.23</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-security</artifactId>
-			<version>11.0.23</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-io</artifactId>
-			<version>11.0.23</version>
-		</dependency>
-
 	</dependencies>
 
 	<build>
@@ -107,20 +65,6 @@
 						<goals>
 							<goal>shade</goal>
 						</goals>
-						<configuration>
-							<artifactSet>
-								<includes>
-									<include>io.javalin:javalin</include>
-									<inculde>org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api</inculde>
-									<include>org.eclipse.jetty:jetty-http</include>
-									<include>org.eclipse.jetty:jetty-util</include>
-									<include>org.eclipse.jetty:jetty-server</include>
-									<include>org.eclipse.jetty:jetty-servlet</include>
-									<include>org.eclipse.jetty:jetty-security</include>
-									<include>org.eclipse.jetty:jetty-io</include>
-								</includes>
-							</artifactSet>
-						</configuration>
 					</execution>
 				</executions>
 			</plugin>
