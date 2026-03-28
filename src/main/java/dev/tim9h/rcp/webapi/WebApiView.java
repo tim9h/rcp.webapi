@@ -4,6 +4,7 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.apache.commons.lang3.StringUtils;
@@ -22,57 +23,68 @@ import dev.tim9h.rcp.spi.TreeNode;
 import dev.tim9h.rcp.webapi.controller.WebApiController;
 
 public class WebApiView implements Plugin {
-	
+
+	public static final String SETTING_PORT = "api.port";
+
+	public static final String SETTING_APIKEY = "api.apikeyhash";
+
+	public static final String SETTING_ALLOWEDIPS = "api.allowedips";
+
 	@InjectLogger
 	private Logger logger;
 
 	@Inject
 	private EventManager eventManager;
-	
+
 	@Inject
 	private CryptoService cryptoService;
-	
+
 	@Inject
 	private Settings settings;
 
 	@Override
 	public String getName() {
+		return "Web API";
+	}
+
+	@Override
+	public String getId() {
 		return "webapi";
 	}
-	
+
 	@Inject
 	private WebApiController controller;
-	
+
 	@Override
 	public Optional<List<Mode>> getModes() {
 		return Optional.of(Arrays.asList(new Mode() {
-			
+
 			@Override
 			public void onEnable() {
 				eventManager.showWaitingIndicatorAsync();
 				controller.start();
 			}
-			
+
 			@Override
 			public void onDisable() {
 				eventManager.showWaitingIndicatorAsync();
 				controller.stop();
 			}
-			
+
 			@Override
 			public String getName() {
 				return "api";
 			}
 		}));
 	}
-	
+
 	@Override
 	public Optional<TreeNode<String>> getModelessCommands() {
 		var password = new StringNode();
 		password.add("api").add("genapikey");
 		return Optional.of(password);
 	}
-	
+
 	@Override
 	public void initBus(EventManager eventManager) {
 		Plugin.super.initBus(eventManager);
@@ -89,17 +101,22 @@ public class WebApiView implements Plugin {
 	private void generateApiKey() {
 		var apiKey = cryptoService.gernateApiKey();
 		var hash = cryptoService.hashSha256(apiKey);
-		settings.persist(WebApiViewFactory.SETTING_APIKEY, hash);
+		settings.persist(WebApiView.SETTING_APIKEY, hash);
 		logger.info(() -> "New API key generated");
 		copyToClipboard(apiKey);
 		eventManager.echo(apiKey, "New API key generated and copied to clipboard");
 	}
-	
+
 	private void copyToClipboard(String apiKey) {
 		if (StringUtils.isNotBlank(apiKey)) {
 			logger.debug(() -> "API key copied to clipboard");
 			Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(apiKey), null);
 		}
+	}
+
+	@Override
+	public Map<String, String> getSettingsContributions() {
+		return Map.of(SETTING_PORT, "8080", SETTING_APIKEY, "", SETTING_ALLOWEDIPS, "");
 	}
 
 }

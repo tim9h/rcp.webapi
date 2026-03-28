@@ -13,7 +13,7 @@ import com.google.inject.Singleton;
 import dev.tim9h.rcp.event.EventManager;
 import dev.tim9h.rcp.logging.InjectLogger;
 import dev.tim9h.rcp.settings.Settings;
-import dev.tim9h.rcp.webapi.WebApiViewFactory;
+import dev.tim9h.rcp.webapi.WebApiView;
 import io.javalin.Javalin;
 import io.javalin.config.RoutesConfig;
 import io.javalin.http.Context;
@@ -64,7 +64,7 @@ public class WebApiController {
 	public void start() {
 		logger.info(() -> "Starting Api Controller");
 
-		var port = settings.getInt(WebApiViewFactory.SETTING_PORT);
+		var port = settings.getInt(WebApiView.SETTING_PORT);
 		if (port == null) {
 			logger.error("Api controller settings are not properly configured");
 			em.echo("Api controller settings are not properly configured");
