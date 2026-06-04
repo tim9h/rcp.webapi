@@ -85,6 +85,7 @@ public class WebApiController {
 				createPostMapping(config.routes, "mute", "", _ -> em.post("mute"));
 				createPostMapping(config.routes, "lock", "", _ -> em.post("lock"));
 				createPostMapping(config.routes, "shutdown", "time", time -> em.post("shutdown", time));
+				createPostMapping(config.routes, "toast", "message", message -> em.showToast(message));
 				createGetMapping(config.routes, "np", this::returnCurrentTrack);
 
 				config.routes.beforeMatched(authManager::handleAccess);
