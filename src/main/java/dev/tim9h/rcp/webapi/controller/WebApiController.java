@@ -23,6 +23,8 @@ import javafx.application.Platform;
 @Singleton
 public class WebApiController {
 
+	private static final int RESPONSE_TIMEOUT_MS = 5000;
+
 	private static final String LOGILED = "logiled";
 
 	@InjectLogger
@@ -75,14 +77,15 @@ public class WebApiController {
 			server = Javalin.create(config -> {
 				createGetMapping(config.routes, LOGILED, this::returnLogiledStatus);
 				createPostMapping(config.routes, LOGILED, "color", this::setLogiledColor);
-				createPostMapping(config.routes, "next", "", _ -> em.post("next"));
-				createPostMapping(config.routes, "previous", "", _ -> em.post("previous"));
-				createPostMapping(config.routes, "play", "", _ -> em.post("play"));
-				createPostMapping(config.routes, "pause", "", _ -> em.post("pause"));
-				createPostMapping(config.routes, "stop", "", _ -> em.post("stop"));
-				createPostMapping(config.routes, "volumeup", "", _ -> em.post("volumeup"));
-				createPostMapping(config.routes, "volumedown", "", _ -> em.post("volumedown"));
-				createPostMapping(config.routes, "mute", "", _ -> em.post("mute"));
+				// Media commands with response tracking
+				createPostMappingWithResponse(config.routes, "next", "", "next");
+				createPostMappingWithResponse(config.routes, "previous", "", "previous");
+				createPostMappingWithResponse(config.routes, "play", "", "play");
+				createPostMappingWithResponse(config.routes, "pause", "", "pause");
+				createPostMappingWithResponse(config.routes, "stop", "", "stop");
+				createPostMappingWithResponse(config.routes, "volumeup", "", "volumeup");
+				createPostMappingWithResponse(config.routes, "volumedown", "", "volumedown");
+				createPostMappingWithResponse(config.routes, "mute", "", "mute");
 				createPostMapping(config.routes, "lock", "", _ -> em.post("lock"));
 				createPostMapping(config.routes, "shutdown", "time", time -> em.post("shutdown", time));
 				createPostMapping(config.routes, "toast", "message", message -> em.showToast(message));
@@ -118,6 +121,96 @@ public class WebApiController {
 				}
 			} catch (IllegalArgumentException _) {
 				logger.warn(() -> String.format("Path parameter %s for post mapping %s not found", param, path));
+			}
+		}, OPERATOR);
+	}
+
+	private void createPostMappingWithResponse(RoutesConfig routes, String path, String param, String eventName) {
+		routes.post(path, ctx -> {
+			try {
+				var value = ctx.queryParam(param);
+				logger.debug(() -> String.format("Handling post request for %s (with response tracking)%s", path,
+						param.equals("") ? "" : " (" + param + ": " + value + ")"));
+
+				// Generate a correlation ID for this request
+				var correlationId = "webapi-" + System.nanoTime();
+
+				// Post the request with correlation ID and wait for response
+				em.postRequest(eventName, correlationId, value != null ? value : "");
+
+				// Wait for response with 5-second timeout
+				var response = em.listenForResponse(correlationId, RESPONSE_TIMEOUT_MS);
+
+				if (response != null && response.length > 0) {
+					var status = (String) response[0];
+					if ("success".equals(status)) {
+						ctx.status(HttpStatus.OK);
+						// Build response with track info for media commands
+						var result = new java.util.HashMap<String, Object>();
+						result.put("status", status);
+						result.put("command", eventName);
+
+						// For media commands (next, previous, play, pause, stop), include track info
+						if (response.length >= 5 && ("next".equals(eventName) || "previous".equals(eventName)
+								|| eventName.equals("play") || eventName.equals("pause") || eventName.equals("stop"))) {
+							var title = response[1] != null ? response[1].toString() : "";
+							var artist = response[2] != null ? response[2].toString() : "";
+							var album = response[3] != null ? response[3].toString() : "";
+							var isPlaying = response[4] instanceof Boolean ? (Boolean) response[4] : false;
+
+							result.put("track", new java.util.HashMap<String, Object>() {
+								{
+									put("title", title);
+									put("artist", artist);
+									put("album", album);
+									put("isPlaying", isPlaying);
+								}
+							});
+							result.put("message", eventName + " completed");
+							logger.debug(
+									() -> "Response sent for " + eventName + " with track: " + title + " - " + artist);
+						} else if (response.length > 1 && "volumeup".equals(eventName)
+								|| "volumedown".equals(eventName)) {
+							// For volume commands, include volume level
+							result.put("volume", response[1]);
+							result.put("message", eventName + " completed successfully");
+							logger.debug(() -> "Response sent for " + eventName + ": new volume level " + response[1]);
+						} else if (response.length > 1) {
+							// For other commands, include raw response details
+							result.put("details", java.util.Arrays.copyOfRange(response, 1, response.length));
+							result.put("message", eventName + " completed successfully");
+
+						} else {
+							result.put("message", eventName + " completed successfully");
+							logger.debug(() -> "Response sent for " + eventName + ": success");
+						}
+						ctx.json(result);
+					} else if ("error".equals(status)) {
+						ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
+						var errorMsg = response.length > 1 ? response[1].toString() : "Unknown error";
+						ctx.result("{\"status\":\"error\",\"command\":\"" + eventName + "\",\"message\":\"" + errorMsg
+								+ "\"}");
+						logger.warn(() -> "Error response for " + eventName + ": " + errorMsg);
+					} else {
+						ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
+						ctx.result("{\"status\":\"unknown\",\"command\":\"" + eventName
+								+ "\",\"message\":\"Unexpected response\"}");
+					}
+				} else {
+					// Timeout
+					ctx.status(HttpStatus.REQUEST_TIMEOUT);
+					ctx.result("{\"status\":\"timeout\",\"command\":\"" + eventName
+							+ "\",\"message\":\"No response from media service within 5 seconds\"}");
+					logger.warn(() -> "Timeout waiting for response from " + eventName);
+				}
+			} catch (IllegalArgumentException e) {
+				logger.warn(() -> String.format("Path parameter %s for post mapping %s not found", param, path));
+				ctx.status(HttpStatus.BAD_REQUEST);
+				ctx.result("{\"status\":\"error\",\"message\":\"Missing required parameter: " + param + "\"}");
+			} catch (Exception e) {
+				logger.error(() -> "Error handling post mapping for " + path, e);
+				ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
+				ctx.result("{\"status\":\"error\",\"message\":\"" + e.getMessage() + "\"}");
 			}
 		}, OPERATOR);
 	}

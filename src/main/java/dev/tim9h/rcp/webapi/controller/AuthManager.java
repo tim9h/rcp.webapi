@@ -48,7 +48,7 @@ public class AuthManager {
 
 	private boolean apiKeyValid(Context ctx) {
 		var apiKey = ctx.header("X-API-Key");
-		logger.atDebug().log("Checking API key: " + apiKey);
+		logger.atDebug().log("Checking API key...");
 		var storedHash = settings.getString(WebApiView.SETTING_APIKEY);
 		return cryptoService.hashMatches(apiKey, storedHash);
 	}
