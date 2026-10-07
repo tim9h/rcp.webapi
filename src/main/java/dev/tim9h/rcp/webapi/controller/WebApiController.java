@@ -269,12 +269,12 @@ public class WebApiController {
 			server.stop();
 			server = null;
 			logger.info(() -> "Stopping api controller");
-			em.echo("Api controller stopped");
+			em.echoAsync("Api controller stopped");
 			thread.interrupt();
 			thread = null;
 			logger.debug(() -> "Api thread stopped");
 		} else {
-			em.echo("Api controller not running");
+			em.echoAsync("Api controller not running");
 		}
 	}
 
