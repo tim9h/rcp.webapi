@@ -2,6 +2,7 @@ package dev.tim9h.rcp.webapi.controller;
 
 import static dev.tim9h.rcp.webapi.controller.AuthManager.Role.OPERATOR;
 
+import java.util.HashMap;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Logger;
@@ -87,7 +88,13 @@ public class WebApiController {
 				createPostMappingWithResponse(config.routes, "volumedown", "", "volumedown");
 				createPostMappingWithResponse(config.routes, "mute", "", "mute");
 				createPostMapping(config.routes, "lock", "", _ -> em.post("lock"));
-				createPostMapping(config.routes, "shutdown", "time", time -> em.post("shutdown", time));
+				createPostMapping(config.routes, "shutdown", "time", time -> {
+					if (time == null || time.isBlank()) {
+						em.post("shutdown");
+					} else {
+						em.post("shutdown", time);
+					}
+				});
 				createPostMapping(config.routes, "toast", "message",
 						message -> em.showToast(settings.getAppTitle(), message));
 				createGetMapping(config.routes, "np", this::returnCurrentTrack);
@@ -157,16 +164,15 @@ public class WebApiController {
 							var title = response[1] != null ? response[1].toString() : "";
 							var artist = response[2] != null ? response[2].toString() : "";
 							var album = response[3] != null ? response[3].toString() : "";
-							var isPlaying = response[4] instanceof Boolean ? (Boolean) response[4] : false;
+							var isPlaying = response[4] instanceof Boolean b && b;
 
-							result.put("track", new java.util.HashMap<String, Object>() {
-								{
-									put("title", title);
-									put("artist", artist);
-									put("album", album);
-									put("isPlaying", isPlaying);
-								}
-							});
+							var track = new HashMap<String, Object>();
+							track.put("title", title);
+							track.put("artist", artist);
+							track.put("album", album);
+							track.put("isPlaying", isPlaying);
+
+							result.put("track", track);
 							result.put("message", eventName + " completed");
 							logger.debug(
 									() -> "Response sent for " + eventName + " with track: " + title + " - " + artist);
@@ -204,7 +210,7 @@ public class WebApiController {
 							+ "\",\"message\":\"No response from media service within 5 seconds\"}");
 					logger.warn(() -> "Timeout waiting for response from " + eventName);
 				}
-			} catch (IllegalArgumentException e) {
+			} catch (IllegalArgumentException _) {
 				logger.warn(() -> String.format("Path parameter %s for post mapping %s not found", param, path));
 				ctx.status(HttpStatus.BAD_REQUEST);
 				ctx.result("{\"status\":\"error\",\"message\":\"Missing required parameter: " + param + "\"}");
