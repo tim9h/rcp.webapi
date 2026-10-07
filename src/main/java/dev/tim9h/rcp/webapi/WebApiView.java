@@ -16,10 +16,10 @@ import dev.tim9h.rcp.event.EventManager;
 import dev.tim9h.rcp.logging.InjectLogger;
 import dev.tim9h.rcp.service.CryptoService;
 import dev.tim9h.rcp.settings.Settings;
+import dev.tim9h.rcp.spi.CommandBuilder;
+import dev.tim9h.rcp.spi.CommandNode;
 import dev.tim9h.rcp.spi.Mode;
 import dev.tim9h.rcp.spi.Plugin;
-import dev.tim9h.rcp.spi.StringNode;
-import dev.tim9h.rcp.spi.TreeNode;
 import dev.tim9h.rcp.webapi.controller.WebApiController;
 
 public class WebApiView implements Plugin {
@@ -79,23 +79,8 @@ public class WebApiView implements Plugin {
 	}
 
 	@Override
-	public Optional<TreeNode<String>> getModelessCommands() {
-		var password = new StringNode();
-		password.add("api").add("genapikey");
-		return Optional.of(password);
-	}
-
-	@Override
-	public void initBus(EventManager eventManager) {
-		Plugin.super.initBus(eventManager);
-		eventManager.listen("api", data -> {
-			if (data == null) {
-				return;
-			}
-			if ("genapikey".equals(data[0])) {
-				generateApiKey();
-			}
-		});
+	public Optional<CommandNode> getCommands() {
+		return new CommandBuilder().command("genapikey", _ -> generateApiKey()).build();
 	}
 
 	private void generateApiKey() {
