@@ -75,12 +75,12 @@ public class WebApiView implements Plugin {
 			public String getName() {
 				return "api";
 			}
-		}));
-	}
 
-	@Override
-	public Optional<CommandNode> getCommands() {
-		return new CommandBuilder().command("genapikey", _ -> generateApiKey()).build();
+			@Override
+			public Optional<CommandNode> getModeCommands() {
+				return new CommandBuilder().command("api").child("genapikey", _ -> generateApiKey()).build();
+			}
+		}));
 	}
 
 	private void generateApiKey() {

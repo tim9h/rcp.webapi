@@ -90,9 +90,9 @@ public class WebApiController {
 				createPostMapping(config.routes, "lock", "", _ -> em.post("lock"));
 				createPostMapping(config.routes, "shutdown", "time", time -> {
 					if (time == null || time.isBlank()) {
-						em.post("shutdown");
+						em.postCommand("shutdown");
 					} else {
-						em.post("shutdown", time);
+						em.postCommand("shutdown", time);
 					}
 				});
 				createPostMapping(config.routes, "toast", "message",
@@ -224,9 +224,9 @@ public class WebApiController {
 
 	private void setLogiledColor(String color) {
 		if ("on".equalsIgnoreCase(color)) {
-			em.post(LOGILED);
+			em.postCommand(LOGILED);
 		} else {
-			em.post(LOGILED, color);
+			em.postCommand(LOGILED, color);
 		}
 	}
 
@@ -242,7 +242,7 @@ public class WebApiController {
 
 	private void subscribeToNp() {
 		em.listen("np", currentTrack -> {
-			if (currentTrack == null) {
+			if (currentTrack == null || currentTrack.length < 4) {
 				return;
 			}
 			this.title = (String) currentTrack[0];
