@@ -90,9 +90,9 @@ public class WebApiController {
 				createPostMapping(config.routes, "lock", "", _ -> em.post("lock"));
 				createPostMapping(config.routes, "shutdown", "time", time -> {
 					if (time == null || time.isBlank()) {
-						em.postCommand("shutdown");
+						em.post("shutdown");
 					} else {
-						em.postCommand("shutdown", time);
+						em.post("shutdown", time);
 					}
 				});
 				createPostMapping(config.routes, "toast", "message",
@@ -224,9 +224,9 @@ public class WebApiController {
 
 	private void setLogiledColor(String color) {
 		if ("on".equalsIgnoreCase(color)) {
-			em.postCommand(LOGILED);
+			em.post(LOGILED);
 		} else {
-			em.postCommand(LOGILED, color);
+			em.post(LOGILED, color);
 		}
 	}
 
@@ -248,7 +248,12 @@ public class WebApiController {
 			this.title = (String) currentTrack[0];
 			this.artist = (String) currentTrack[1];
 			this.album = (String) currentTrack[2];
-			this.isPlaying = (boolean) currentTrack[3];
+			try {
+				this.isPlaying = (boolean) currentTrack[3];
+			} catch (ClassCastException e) {
+				this.isPlaying = "true".equalsIgnoreCase(String.valueOf(currentTrack[3]))
+						|| "1".equals(String.valueOf(currentTrack[3]));
+			}
 		});
 	}
 
