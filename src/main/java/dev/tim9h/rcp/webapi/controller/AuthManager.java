@@ -36,7 +36,7 @@ public class AuthManager {
 	}
 
 	public void handleAccess(Context ctx) {
-		logger.atDebug().log("Handling access for route: " + ctx.path());
+		logger.debug(() -> "Handling access for route: " + ctx.path());
 		if (ctx.routeRoles().contains(Role.ANYONE)) {
 			return;
 		}

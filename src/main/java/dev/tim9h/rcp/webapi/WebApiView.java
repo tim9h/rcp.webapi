@@ -100,6 +100,11 @@ public class WebApiView implements Plugin {
 	}
 
 	@Override
+	public void onShutdown() {
+		controller.shutdown();
+	}
+
+	@Override
 	public Map<String, String> getSettingsContributions() {
 		return Map.of(SETTING_PORT, "8080", SETTING_APIKEY, "", SETTING_ALLOWEDIPS, "");
 	}

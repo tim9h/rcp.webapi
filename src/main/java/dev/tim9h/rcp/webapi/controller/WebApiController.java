@@ -3,6 +3,10 @@ package dev.tim9h.rcp.webapi.controller;
 import static dev.tim9h.rcp.webapi.controller.AuthManager.Role.OPERATOR;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.Logger;
@@ -37,17 +41,15 @@ public class WebApiController {
 	@Inject
 	private EventManager em;
 
-	private Javalin server;
+	private volatile Javalin server;
 
-	private Thread thread;
+	private volatile Track track;
 
-	private String title;
-
-	private String artist;
-
-	private String album;
-
-	private boolean isPlaying;
+	private final ExecutorService lifecycle = Executors.newSingleThreadExecutor(r -> {
+		var t = new Thread(r, "WebApiController");
+		t.setDaemon(true);
+		return t;
+	});
 
 	public record Track(String title, String artist, String album, boolean isPlaying) {
 	}
@@ -74,7 +76,15 @@ public class WebApiController {
 			return;
 		}
 
-		thread = new Thread(() -> {
+		lifecycle.execute(() -> startServer(port));
+	}
+
+	private void startServer(int port) {
+		if (server != null) {
+			logger.warn(() -> "Api controller already running");
+			return;
+		}
+		try {
 			server = Javalin.create(config -> {
 				createGetMapping(config.routes, LOGILED, this::returnLogiledStatus);
 				createPostMapping(config.routes, LOGILED, "color", this::setLogiledColor);
@@ -102,10 +112,12 @@ public class WebApiController {
 				config.routes.beforeMatched(authManager::handleAccess);
 			}).start(port);
 			logger.info(() -> "Api controller started on port " + port);
-			em.echo("Api controller started");
-		}, "WebApiController");
-		thread.setDaemon(true);
-		thread.start();
+			em.echoAsync("Api controller started");
+		} catch (Exception e) {
+			server = null;
+			logger.error(() -> "Unable to start api controller on port " + port, e);
+			em.echoAsync("Unable to start api controller: " + e.getMessage());
+		}
 	}
 
 	private void createGetMapping(RoutesConfig routes, String path, Consumer<Context> response) {
@@ -166,18 +178,18 @@ public class WebApiController {
 							var album = response[3] != null ? response[3].toString() : "";
 							var isPlaying = response[4] instanceof Boolean b && b;
 
-							var track = new HashMap<String, Object>();
-							track.put("title", title);
-							track.put("artist", artist);
-							track.put("album", album);
-							track.put("isPlaying", isPlaying);
+							var newTrack = new HashMap<String, Object>();
+							newTrack.put("title", title);
+							newTrack.put("artist", artist);
+							newTrack.put("album", album);
+							newTrack.put("isPlaying", isPlaying);
 
-							result.put("track", track);
+							result.put("track", newTrack);
 							result.put("message", eventName + " completed");
 							logger.debug(
 									() -> "Response sent for " + eventName + " with track: " + title + " - " + artist);
-						} else if (response.length > 1 && "volumeup".equals(eventName)
-								|| "volumedown".equals(eventName)) {
+						} else if (response.length > 1
+								&& ("volumeup".equals(eventName) || "volumedown".equals(eventName))) {
 							// For volume commands, include volume level
 							result.put("volume", response[1]);
 							result.put("message", eventName + " completed successfully");
@@ -195,29 +207,27 @@ public class WebApiController {
 					} else if ("error".equals(status)) {
 						ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
 						var errorMsg = response.length > 1 ? response[1].toString() : "Unknown error";
-						ctx.result("{\"status\":\"error\",\"command\":\"" + eventName + "\",\"message\":\"" + errorMsg
-								+ "\"}");
+						ctx.json(Map.of("status", "error", "command", eventName, "message", errorMsg));
 						logger.warn(() -> "Error response for " + eventName + ": " + errorMsg);
 					} else {
 						ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
-						ctx.result("{\"status\":\"unknown\",\"command\":\"" + eventName
-								+ "\",\"message\":\"Unexpected response\"}");
+						ctx.json(Map.of("status", "unknown", "command", eventName, "message", "Unexpected response"));
 					}
 				} else {
 					// Timeout
 					ctx.status(HttpStatus.REQUEST_TIMEOUT);
-					ctx.result("{\"status\":\"timeout\",\"command\":\"" + eventName
-							+ "\",\"message\":\"No response from media service within 5 seconds\"}");
+					ctx.json(Map.of("status", "timeout", "command", eventName, "message",
+							"No response from media service within 5 seconds"));
 					logger.warn(() -> "Timeout waiting for response from " + eventName);
 				}
 			} catch (IllegalArgumentException _) {
 				logger.warn(() -> String.format("Path parameter %s for post mapping %s not found", param, path));
 				ctx.status(HttpStatus.BAD_REQUEST);
-				ctx.result("{\"status\":\"error\",\"message\":\"Missing required parameter: " + param + "\"}");
+				ctx.json(Map.of("status", "error", "message", "Missing required parameter: " + param));
 			} catch (Exception e) {
 				logger.error(() -> "Error handling post mapping for " + path, e);
 				ctx.status(HttpStatus.INTERNAL_SERVER_ERROR);
-				ctx.result("{\"status\":\"error\",\"message\":\"" + e.getMessage() + "\"}");
+				ctx.json(Map.of("status", "error", "message", String.valueOf(e.getMessage())));
 			}
 		}, OPERATOR);
 	}
@@ -245,42 +255,68 @@ public class WebApiController {
 			if (currentTrack == null || currentTrack.length < 4) {
 				return;
 			}
-			this.title = (String) currentTrack[0];
-			this.artist = (String) currentTrack[1];
-			this.album = (String) currentTrack[2];
-			try {
-				this.isPlaying = (boolean) currentTrack[3];
-			} catch (ClassCastException e) {
-				this.isPlaying = "true".equalsIgnoreCase(String.valueOf(currentTrack[3]))
+			boolean playing;
+			if (currentTrack[3] instanceof Boolean b) {
+				playing = b;
+			} else {
+				playing = "true".equalsIgnoreCase(String.valueOf(currentTrack[3]))
 						|| "1".equals(String.valueOf(currentTrack[3]));
 			}
+			this.track = new Track((String) currentTrack[0], (String) currentTrack[1], (String) currentTrack[2],
+					playing);
 		});
 	}
 
 	private void returnCurrentTrack(Context ctx) {
 		em.post("np");
-		if (title == null || artist == null || album == null) {
+		var currentTrack = track;
+		if (currentTrack == null || currentTrack.title() == null || currentTrack.artist() == null
+				|| currentTrack.album() == null) {
 			ctx.status(HttpStatus.NOT_FOUND);
 			return;
 		}
-		var currentTrack = new Track(title, artist, album, isPlaying);
 		logger.debug(() -> "Returning current track: " + currentTrack);
 		ctx.json(currentTrack);
 		ctx.status(HttpStatus.OK);
 	}
 
 	public void stop() {
-		if (thread != null && server != null) {
-			server.stop();
-			server = null;
-			logger.info(() -> "Stopping api controller");
-			em.echoAsync("Api controller stopped");
-			thread.interrupt();
-			thread = null;
-			logger.debug(() -> "Api thread stopped");
-		} else {
-			em.echoAsync("Api controller not running");
+		lifecycle.execute(() -> {
+			if (stopServer()) {
+				em.echoAsync("Api controller stopped");
+			} else {
+				em.echoAsync("Api controller not running");
+			}
+		});
+	}
+
+	/**
+	 * Stops the server synchronously (for application shutdown) and releases the
+	 * lifecycle executor.
+	 */
+	public void shutdown() {
+		lifecycle.shutdown();
+		try {
+			lifecycle.awaitTermination(RESPONSE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException _) {
+			Thread.currentThread().interrupt();
 		}
+		stopServer();
+	}
+
+	private boolean stopServer() {
+		var running = server;
+		if (running == null) {
+			return false;
+		}
+		logger.info(() -> "Stopping api controller");
+		server = null;
+		try {
+			running.stop();
+		} catch (Exception e) {
+			logger.warn(() -> "Error while stopping api controller", e);
+		}
+		return true;
 	}
 
 }
