@@ -17,6 +17,7 @@ import com.google.inject.Singleton;
 
 import dev.tim9h.rcp.event.EventManager;
 import dev.tim9h.rcp.logging.InjectLogger;
+import dev.tim9h.rcp.service.ModeService;
 import dev.tim9h.rcp.settings.Settings;
 import dev.tim9h.rcp.webapi.WebApiView;
 import io.javalin.Javalin;
@@ -40,6 +41,9 @@ public class WebApiController {
 
 	@Inject
 	private EventManager em;
+
+	@Inject
+	private ModeService modeService;
 
 	private volatile Javalin server;
 
@@ -241,7 +245,7 @@ public class WebApiController {
 	}
 
 	private void returnLogiledStatus(Context ctx) {
-		var enabled = settings.getStringSet("core.modes").contains(LOGILED);
+		var enabled = modeService.isModeActive(LOGILED);
 		var color = settings.getString("logiled.lighting.color");
 		var status = new LogiledStatus(enabled, color);
 		ctx.result(Boolean.toString(enabled));
